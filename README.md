@@ -1,7 +1,7 @@
 # Convolución-de-imagen
 # Procesamiento de Imágenes y OCR con Google Books API
 
-Este proyecto toma imágenes de libros, extrae el texto de la portada usando OCR (Reconocimiento Óptico de Caracteres) con pytesseract, y busca información del libro en **Google Books API**.
+Este proyecto toma imágenes de libros, extrae el texto de la portada usando OCR (Reconocimiento Óptico de Caracteres) con pytesseract, y busca información del libro en Google Books API.
 
 ---
 
@@ -82,9 +82,9 @@ Ejecuta el flujo completo para varias imágenes.
 ---
 
 ## **Requisitos**
-Antes de ejecutar el código, instala las dependencias necesarias:
+Antes de ejecutar el código, instala las dependencias necesarias; además se recomienda el uso de Google Colab:
 
 ```bash
 pip install requests pillow numpy opencv-python pytesseract matplotlib
 
-Se recomienda el uso de Google Colab
+
