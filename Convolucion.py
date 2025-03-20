@@ -14,8 +14,8 @@ pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 def download_image(url):
     """Descarga una imagen desde una URL y la convierte a formato OpenCV."""
     try:
-        response = requests.get(url, timeout=5)  # Máximo 5 segundos de espera
-        response.raise_for_status()  # Verifica errores HTTP
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
         image = Image.open(BytesIO(response.content))
         return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     except requests.exceptions.Timeout:
@@ -25,54 +25,64 @@ def download_image(url):
     return None
 
 def process_image(image):
-    """Preprocesa la imagen para resaltar el texto y desenfocar el fondo."""
-    # Convertir a escala de grises
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    """Preprocesa la imagen para mejorar la precisión del OCR."""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Convertir a escala de grises
 
-    # Detección de bordes para encontrar áreas de texto
-    edges = cv2.Canny(gray, 50, 150)
+    # Mejorar el contraste con ecualización de histograma
+    clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8, 8))
+    gray = clahe.apply(gray)
 
-    # Dilatar los bordes para unir áreas cercanas
-    kernel = np.ones((3, 3), np.uint8)
-    dilated = cv2.dilate(edges, kernel, iterations=2)
+    # Reducir ruido con un filtro bilateral
+    denoised = cv2.bilateralFilter(gray, 9, 75, 75)
 
-    # Encontrar contornos de las áreas de texto
-    contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Usar umbral adaptativo o binarización de Otsu según el caso
+    _, thresh = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    # Crear una máscara para las áreas de texto
-    mask = np.zeros_like(gray)
-    for contour in contours:
-        x, y, w, h = cv2.boundingRect(contour)
-        cv2.rectangle(mask, (x, y), (x + w, y + h), (255), -1)
-
-    # Desenfocar toda la imagen
-    blurred_image = cv2.GaussianBlur(image, (25, 25), 0)
-
-    # Combinar la imagen desenfocada con las áreas de texto nítidas
-    result = np.where(mask[..., None] == 255, image, blurred_image)
-
-    return result
+    return thresh
 
 def extract_text(image_url):
-    """Extrae el texto de una imagen usando OCR."""
+    """Extrae el texto de una imagen usando OCR mejorado."""
     image = download_image(image_url)
     if image is None:
         return "No se pudo procesar la imagen."
 
     processed_image = process_image(image)
 
-    # Configuración avanzada para mejorar OCR
-    custom_config = r'--oem 3 --psm 6'
+    # Configuración avanzada de Tesseract
+    custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.!?() "'
     text = pytesseract.image_to_string(processed_image, config=custom_config, lang='eng')
 
-    return text.strip()  # Eliminar espacios en blanco innecesarios
+    return text.strip()
 
-# Ejecutar el código
+def get_purchase_link(book_title):
+    """Busca un enlace de compra para el libro basado en su título."""
+    # Se integra una API de comercio electrónico (por ejemplo, Amazon, Google Books, etc.)
+    # en este caso se busca en Google Books.
+    base_url = "https://www.googleapis.com/books/v1/volumes"
+    params = {
+        "q": book_title,  # Título del libro
+        "maxResults": 1,  # Solo un resultado
+    }
+    try:
+        response = requests.get(base_url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        if data.get("items"):
+            # Obtener el enlace de compra checa si está disponible o no
+            purchase_link = data["items"][0]["volumeInfo"].get("infoLink", "No disponible")
+            return purchase_link
+        else:
+            return "No se encontró el libro."
+    except requests.exceptions.RequestException as e:
+        return f"Error al buscar el libro: {e}"
+
+# ejecutar el código
 if __name__ == "__main__":
-    # Prueba con diferentes portadas
     image_urls = [
-        "https://www.planetadelibros.com.mx/usuaris/libros/fotos/383/m_libros/portada_orgullo-y-prejuicio_jane-austen_202308011307.jpg",
-        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_esq8obGbU3busaB8YJ6BR4hygxV8VhYgiQ&s",  # Agregar más URLs de portadas aquí
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_esq8obGbU3busaB8YJ6BR4hygxV8VhYgiQ&s",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS_HHeiT15U_9PDR0FhgS_riO6zha67cN7DHw&s", 
+        "https://www.elbazardelibro.com.mx/imagenes/9786071/978607141537.JPG"
+
     ]
 
     for url in image_urls:
@@ -81,8 +91,13 @@ if __name__ == "__main__":
         print("Texto extraído:")
         print(extracted_text)
 
-        # Mostrar la imagen procesada en Colab
+        # Enlace de compra basado en el texto extraído
+        purchase_link = get_purchase_link(extracted_text)
+        print("Enlace de compra:")
+        print(purchase_link)
+
+        # Mostrar imagen ya procesada
         image = download_image(url)
         processed_image = process_image(image)
-        cv2_imshow(processed_image)  # Usar cv2_imshow en lugar de cv2.imshow
+        cv2_imshow(processed_image)  # Usar cv2_imshow en Colab
         print("\n" + "="*50 + "\n")
