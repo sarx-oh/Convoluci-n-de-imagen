@@ -6,20 +6,17 @@ import numpy as np
 import pytesseract
 import matplotlib.pyplot as plt
 
-
-# Función que valida si el URL contiene una imagen
+# Función para validar si la URL contiene una imagen
 def is_valid_image_url(url):
     try:
-        # Se pide el HEAD para obtener los encabezados para después usar content-type
-        response = requests.head(url, timeout=5)
-        content_type = response.headers.get("Content-Type", "")
+        # Solo obtenemos los headers para evitar descargar la imagen completa
+        response = requests.head(url, timeout=5)  
+        response.raise_for_status()
 
-        if "image" not in content_type:
-            print(f" La URL {url} no parece ser una imagen. Tipo: {content_type}")
-            return False
-        return True
-    except requests.exceptions.RequestException as e:
-        print(f" No se pudo verificar la URL {url}: {e}")
+        # Verifica si el Content-Type indica que es una imagen
+        content_type = response.headers.get("Content-Type", "")
+        return "image" in content_type  
+    except requests.exceptions.RequestException:
         return False
 
 
@@ -116,7 +113,7 @@ def get_purchase_link(book_title):
 if __name__ == "__main__":
     image_urls = [
         "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_esq8obGbU3busaB8YJ6BR4hygxV8VhYgiQ&s",
-        "https://elratondebiblioteca.com/wp-content/uploads/2024/02/464-1c51bb26-0c83-4093-8824-5bb07679130d.jpg",
+        "https://m.media-amazon.com/images/I/61rpxs0l9VL._AC_UF1000,1000_QL80_.jpg",
         "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS_HHeiT15U_9PDR0FhgS_riO6zha67cN7DHw&s",
         "https://images.cdn2.buscalibre.com/fit-in/360x360/03/05/03056fc1f0f830b81b7f92a74b5ce27e.jpg",
         "https://image.isu.pub/161205231810-a6826fe780ef64bf5bd3a99eb2792947/jpg/page_1_thumb_large.jpg"
